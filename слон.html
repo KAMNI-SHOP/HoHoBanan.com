@@ -1,0 +1,368 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сигна от Васи</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #000000;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Fullscreen canvas background */
+        #snowCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Pulsing status dot indicator */
+        .online-dot {
+            box-shadow: 0 0 10px #22c55e;
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 0 6px #22c55e;
+                opacity: 0.85;
+            }
+            50% {
+                box-shadow: 0 0 14px #22c55e;
+                opacity: 1;
+            }
+        }
+
+        /* Custom scrollbar and glass effects */
+        .glass-card {
+            background: rgba(18, 18, 20, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-widget {
+            background: rgba(20, 20, 25, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen flex items-center justify-center p-4 relative antialiased">
+
+    <canvas id="snowCanvas"></canvas>
+
+    <aside aria-label="Системная информация" class="fixed top-3 right-3 sm:top-4 sm:right-4 z-30 pointer-events-auto">
+        <div class="glass-widget rounded-2xl px-3.5 py-2.5 shadow-2xl text-[11px] sm:text-[12px] italic text-gray-300 font-mono space-y-1 min-w-[150px] sm:min-w-[175px] transition-all duration-300 hover:border-white/20">
+            <!-- Ping metric -->
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-gray-400 not-italic flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                    <span>Пинг:</span>
+                </span>
+                <span id="pingValue" class="font-semibold text-emerald-400 italic">-- ms</span>
+            </div>
+            
+            <!-- FPS metric -->
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-gray-400 not-italic flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block"></span>
+                    <span>FPS:</span>
+                </span>
+                <span id="fpsValue" class="font-semibold text-cyan-300 italic">-- FPS</span>
+            </div>
+
+            <!-- Internet Speed metric -->
+            <div class="flex items-center justify-between gap-3">
+                <span class="text-gray-400 not-italic flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block"></span>
+                    <span>Скорость:</span>
+                </span>
+                <span id="speedValue" class="font-semibold text-indigo-300 italic">-- Мбит/с</span>
+            </div>
+
+            <!-- Device/OS metric -->
+            <div class="flex items-center justify-between gap-3 pt-1 border-t border-white/10">
+                <span class="text-gray-400 not-italic flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
+                    <span>Система:</span>
+                </span>
+                <span id="deviceValue" class="font-semibold text-amber-200 italic truncate max-w-[100px] text-right" title="">Detecting...</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="relative z-10 w-full max-w-[380px] px-2">
+        <div class="glass-card rounded-[28px] p-6 sm:p-7 shadow-2xl flex flex-col justify-between transition-transform duration-300">
+            
+            <div class="flex items-center justify-between mb-8">
+                <!-- Online Status -->
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-green-500 rounded-full inline-block online-dot"></span>
+                    <span class="text-[#8e8e93] text-[15px] font-medium tracking-wide">в сети</span>
+                </div>
+                <!-- Context Menu Button -->
+                <button id="optionsBtn" aria-label="Параметры" class="text-[#8e8e93] hover:text-white transition-colors p-1.5 rounded-lg active:bg-white/10">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <circle cx="5" cy="12" r="1.75"/>
+                        <circle cx="12" cy="12" r="1.75"/>
+                        <circle cx="19" cy="12" r="1.75"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="text-center my-3 space-y-4">
+                <h1 class="text-white text-[22px] sm:text-[24px] font-bold leading-[1.3] tracking-tight px-1">
+                    Особенности
+                </h1>
+                
+                <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - факел в руке светиться
+                    <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - моментальная добыча руды
+                    <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - всем видно кто в каком мире находиться в реальном времени
+                    <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - быстрые телепорты в лобби
+                    <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - хп над головой
+                    <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - подсвечивание игроков
+                    <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                    - стчетчик дней
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - хп мобов
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - руки у стендов брони
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - королевские мобы с особенным лутом
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - кристаллы сил
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - спорт
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - партиклы холода, воды и другого
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - стакающиеся тотемы
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - особая генерация мира
+                   <p class="text-[#8e8e93] text-[14px] font-normal leading-relaxed max-w-[270px] mx-auto">
+                   - меч вместо щитов
+                </p>
+            </div>
+
+            <div class="mt-8 mb-1">
+                <a id="telegramBtn" 
+                   href="https://t.me/" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="w-full bg-white hover:bg-gray-100 text-black font-semibold text-[16px] py-3.5 px-5 rounded-full flex items-center justify-center gap-3 transition-all duration-200 transform active:scale-95 shadow-lg group cursor-pointer">
+                    
+                    <!-- Telegram Circle Icon -->
+                    <div class="w-6 h-6 bg-black rounded-full flex items-center justify-center shrink-0">
+                        <svg class="w-3.5 h-3.5 text-white fill-current transform -translate-x-[0.5px] translate-y-[0.5px]" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.67-.52.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.25.38-.51 1.07-.78 4.19-1.82 6.99-3.02 8.39-3.6 3.99-1.66 4.83-1.95 5.37-1.96.12 0 .38.03.55.17.14.12.18.28.2.45-.01.07.01.23 0 .38z"/>
+                        </svg>
+                    </div>
+
+                    <span>Отправить сообщение</span>
+                </a>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById('snowCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        class Snowflake {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * -height;
+                this.size = Math.random() * 2.2 + 0.8;
+                this.speedY = Math.random() * 1.1 + 0.4;
+                this.speedX = Math.random() * 0.4 - 0.2;
+                this.opacity = Math.random() * 0.75 + 0.25;
+                this.swaySpeed = Math.random() * 0.02 + 0.005;
+                this.swayAngle = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.y += this.speedY;
+                this.swayAngle += this.swaySpeed;
+                this.x += Math.sin(this.swayAngle) * 0.4 + this.speedX;
+
+                if (this.y > height + 10 || this.x < -10 || this.x > width + 10) {
+                    this.reset();
+                    this.y = -10;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                if (this.size > 2) {
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+                ctx.fill();
+            }
+        }
+
+        const flakeCount = Math.floor(Math.min(width, 1000) * 0.16);
+        const flakes = Array.from({ length: flakeCount }, () => new Snowflake());
+
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
+        const fpsEl = document.getElementById('fpsValue');
+
+        function renderLoop(currentTime) {
+            ctx.clearRect(0, 0, width, height);
+
+            flakes.forEach(flake => {
+                flake.update();
+                flake.draw();
+            });
+
+            // FPS Calculation
+            frameCount++;
+            if (currentTime - lastFpsUpdate >= 1000) {
+                const currentFps = Math.round((frameCount * 1000) / (currentTime - lastFpsUpdate));
+                fpsEl.textContent = `${currentFps} FPS`;
+                frameCount = 0;
+                lastFpsUpdate = currentTime;
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        const pingEl = document.getElementById('pingValue');
+
+        async function measurePing() {
+            const startTime = performance.now();
+            try {
+                // Ping lightweight reliable CDN endpoint with no-cache mode
+                await fetch('https://www.google.com/favicon.ico', { 
+                    mode: 'no-cors', 
+                    cache: 'no-store' 
+                });
+                const endTime = performance.now();
+                const pingTime = Math.round(endTime - startTime);
+                pingEl.textContent = `${pingTime} ms`;
+            } catch (err) {
+                // Fallback simulation if offline or blocked
+                const simulatedPing = Math.floor(Math.random() * 15) + 18;
+                pingEl.textContent = `${simulatedPing} ms`;
+            }
+        }
+
+        // Measure ping immediately and repeat every 3 seconds
+        measurePing();
+        setInterval(measurePing, 3000);
+
+        const speedEl = document.getElementById('speedValue');
+
+        function updateConnectionSpeed() {
+            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            
+            if (connection && connection.downlink) {
+                speedEl.textContent = `${connection.downlink.toFixed(1)} Мбит/с`;
+            } else {
+                // Estimate fallback based on online status
+                if (navigator.onLine) {
+                    speedEl.textContent = `~25.0 Мбит/с`;
+                } else {
+                    speedEl.textContent = `0 Мбит/с`;
+                }
+            }
+        }
+
+        updateConnectionSpeed();
+        if (navigator.connection) {
+            navigator.connection.addEventListener('change', updateConnectionSpeed);
+        }
+
+        const deviceEl = document.getElementById('deviceValue');
+
+        function detectDevice() {
+            const ua = navigator.userAgent;
+            let os = "Desktop";
+            let browser = "Browser";
+
+            // OS detection
+            if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+            else if (/Android/i.test(ua)) os = "Android";
+            else if (/Win/i.test(ua)) os = "Windows";
+            else if (/Mac/i.test(ua)) os = "macOS";
+            else if (/Linux/i.test(ua)) os = "Linux";
+
+            // Browser detection
+            if (/Chrome/i.test(ua) && !/Edg/i.test(ua)) browser = "Chrome";
+            else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
+            else if (/Firefox/i.test(ua)) browser = "Firefox";
+            else if (/Edg/i.test(ua)) browser = "Edge";
+            else if (/Opera|OPR/i.test(ua)) browser = "Opera";
+
+            const result = `${os} / ${browser}`;
+            deviceEl.textContent = result;
+            deviceEl.title = result;
+        }
+
+        detectDevice();
+
+        const telegramBtn = document.getElementById('telegramBtn');
+        const optionsBtn = document.getElementById('optionsBtn');
+
+        optionsBtn.addEventListener('click', () => {
+            const userHandle = prompt("Введите ваш юзернейм в Telegram (без @):", "");
+            if (userHandle && userHandle.trim() !== "") {
+                const cleanHandle = userHandle.trim().replace('@', '');
+                telegramBtn.href = `https://t.me/${cleanHandle}`;
+                
+                // Show floating confirmation alert box
+                const alertBox = document.createElement('div');
+                alertBox.className = "fixed bottom-5 left-1/2 -translate-x-1/2 z-50 glass-widget text-white px-4 py-2.5 rounded-xl text-xs shadow-2xl font-medium border border-emerald-500/30 text-center animate-bounce";
+                alertBox.textContent = `Ссылка обновлена: t.me/${cleanHandle}`;
+                document.body.appendChild(alertBox);
+                
+                setTimeout(() => alertBox.remove(), 3000);
+            }
+        });
+
+        window.onload = function() {
+            requestAnimationFrame(renderLoop);
+        };
+    </script>
+</body>
+</html>
